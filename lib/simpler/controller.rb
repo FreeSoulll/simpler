@@ -9,6 +9,8 @@ module Simpler
       @name = extract_name
       @request = Rack::Request.new(env)
       @response = Rack::Response.new
+      @request.params.merge!(env['params'])
+      @rendered = false
     end
 
     def make_response(action)
@@ -36,10 +38,46 @@ module Simpler
       body = render_body
 
       @response.write(body)
+      @rendered = true
+    end
+
+    def set_content_type(content_type)
+      headers['Content-Type'] = content_type
     end
 
     def render_body
       View.new(@request.env).render(binding)
+    end
+
+    def render_string(template)
+      @request.env['simpler.template'] = template
+    end
+
+    def render_error(error_message)
+      status 500
+      @response.write(error_message)
+      @response.finish
+    end
+
+    def render_hash(params)
+      if params.key?(:plain)
+        render_plain(hash[:plain])
+      else
+        render_error("Cannot render template with #{params.keys} options")
+      end
+    end
+
+    def render_plain(text)
+      set_content_type('text/plain')
+      @response.write(text)
+    end
+
+    def status(status)
+      response.status = status
+    end
+
+    def headers
+      @response.headers
     end
 
     def params
@@ -47,8 +85,15 @@ module Simpler
     end
 
     def render(template)
-      @request.env['simpler.template'] = template
+      case template
+      when String
+        render_string(template)
+      when Hash
+        render_hash(template)
+      else
+        render_error("Cannot render #{template.class} template")
+      end
+      @rendered = true
     end
-
   end
 end

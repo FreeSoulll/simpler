@@ -22,6 +22,16 @@ module Simpler
       @routes.find { |route| route.match?(method, path) }
     end
 
+    def not_found(env)
+      method = env['REQUEST_METHOD'].downcase.to_sym
+      path = env['PATH_INFO']
+      Rack::Response.new.then do |response|
+        response.status = 404
+        response.write("[#{method} #{path}] route not found")
+        response.finish
+      end
+    end
+
     private
 
     def add_route(method, path, route_point)
@@ -36,6 +46,5 @@ module Simpler
     def controller_from_string(controller_name)
       Object.const_get("#{controller_name.capitalize}Controller")
     end
-
   end
 end
